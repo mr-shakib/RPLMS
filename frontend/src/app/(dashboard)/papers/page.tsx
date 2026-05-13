@@ -1,12 +1,12 @@
 "use client";
 
-import { Plus, Search, FileText } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { usePapers } from "@/hooks/usePapers";
 import type { Paper } from "@/types";
 import { useState } from "react";
+import { CreatePaperDialog } from "@/components/create-paper-dialog";
 
 const PHASE_BADGE: Record<string, string> = {
   Planning: "bg-blue-50 text-blue-700 border-blue-200",
@@ -43,10 +43,7 @@ export default function PapersPage() {
             Manage your research papers and their lifecycle
           </p>
         </div>
-        <Button size="sm" className="gap-2">
-          <Plus className="h-4 w-4" />
-          New Paper
-        </Button>
+        <CreatePaperDialog />
       </div>
 
       <div className="relative">
@@ -65,9 +62,7 @@ export default function PapersPage() {
         <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-20">
           <FileText className="h-10 w-10 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">No papers found</p>
-          <Button size="sm" variant="outline" className="gap-2">
-            <Plus className="h-4 w-4" /> Create your first paper
-          </Button>
+          <CreatePaperDialog />
         </div>
       ) : (
         <div className="rounded-xl border divide-y bg-white shadow-none">
