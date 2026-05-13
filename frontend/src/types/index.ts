@@ -1,0 +1,81 @@
+export type UserRole = "super_admin" | "supervisor" | "researcher" | "external";
+
+export interface User {
+  id: number;
+  email: string;
+  full_name: string;
+  institution: string;
+  department: string;
+  orcid: string;
+  profile_image: string | null;
+  role: UserRole;
+  is_email_verified: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PaperStatus =
+  | "idea_proposed" | "topic_discussion" | "literature_review" | "gap_analysis"
+  | "proposal_drafting" | "proposal_approved" | "dataset_collection" | "dataset_cleaning"
+  | "model_development" | "experimentation" | "evaluation" | "result_analysis"
+  | "initial_draft" | "figure_preparation" | "formatting" | "citation_checking"
+  | "grammar_review" | "internal_review" | "supervisor_review" | "journal_selection"
+  | "submission_ready" | "submitted" | "under_review" | "revision_requested"
+  | "resubmitted" | "accepted" | "rejected" | "withdrawn" | "published";
+
+export interface Paper {
+  id: number;
+  paper_id: string;
+  title: string;
+  short_title: string;
+  abstract: string;
+  status: PaperStatus;
+  domain: string;
+  keywords: string[];
+  tags: string[];
+  supervisor: User | null;
+  created_by: User | null;
+  literature_review_progress: number;
+  dataset_progress: number;
+  experiment_progress: number;
+  writing_progress: number;
+  revision_progress: number;
+  overall_progress: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type TaskStatus = "todo" | "in_progress" | "waiting_review" | "completed" | "blocked";
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
+
+export interface Task {
+  id: number;
+  paper: number;
+  title: string;
+  description: string;
+  assigned_to: number | null;
+  priority: TaskPriority;
+  status: TaskStatus;
+  deadline: string | null;
+  estimated_hours: number | null;
+  parent_task: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Notification {
+  id: number;
+  notification_type: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  link: string;
+  created_at: string;
+}
+
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
