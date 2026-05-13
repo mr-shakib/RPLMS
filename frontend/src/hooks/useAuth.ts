@@ -28,6 +28,24 @@ export function useLogin() {
   });
 }
 
+export function useUpdateMe() {
+  const { setUser } = useAuthStore();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: authService.updateMe,
+    onSuccess: (data) => {
+      setUser(data.data);
+      qc.setQueryData(["me"], data.data);
+    },
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: authService.changePassword,
+  });
+}
+
 export function useLogout() {
   const { refreshToken, logout } = useAuthStore();
   const qc = useQueryClient();

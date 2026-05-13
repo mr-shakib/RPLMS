@@ -1,5 +1,47 @@
 import axios from "axios";
 
+const STORE_KEY = "rplms-auth";
+
+function getStored(): { accessToken: string | null; refreshToken: string | null } {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return { accessToken: null, refreshToken: null };
+    const parsed = JSON.parse(raw);
+    return {
+      accessToken: parsed?.state?.accessToken ?? null,
+      refreshToken: parsed?.state?.refreshToken ?? null,
+    };
+  } catch {
+    return { accessToken: null, refreshToken: null };
+  }
+}
+
+function setAccessToken(token: string) {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    parsed.state.accessToken = token;
+    localStorage.setItem(STORE_KEY, JSON.stringify(parsed));
+  } catch {
+    // ignore
+  }
+}
+
+function clearTokens() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    parsed.state.accessToken = null;
+    parsed.state.refreshToken = null;
+    localStorage.setItem(STORE_KEY, JSON.stringify(parsed));
+  } catch {
+    // ignore
+  }
+  document.cookie = "rplms_access=; path=/; max-age=0";
+}
+
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
   headers: { "Content-Type": "application/json" },
@@ -7,8 +49,8 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("access_token");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+    const { accessToken } = getStored();
+    if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
   }
   return config;
 });
@@ -20,17 +62,16 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
       try {
-        const refresh = localStorage.getItem("refresh_token");
+        const { refreshToken } = getStored();
         const { data } = await axios.post(
           `${process.env.NEXT_PUBLIC_API_URL}/auth/token/refresh/`,
-          { refresh }
+          { refresh: refreshToken }
         );
-        localStorage.setItem("access_token", data.access);
+        setAccessToken(data.access);
         original.headers.Authorization = `Bearer ${data.access}`;
         return api(original);
       } catch {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
+        clearTokens();
         window.location.href = "/login";
       }
     }

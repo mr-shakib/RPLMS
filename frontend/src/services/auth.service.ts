@@ -19,6 +19,9 @@ export const authService = {
 
   me: () => api.get<User>("/auth/me/"),
 
+  updateMe: (data: Partial<Pick<User, "full_name" | "institution" | "department" | "orcid">>) =>
+    api.patch<User>("/auth/me/", data),
+
   changePassword: (data: { current_password: string; new_password: string }) =>
     api.post("/auth/change-password/", data),
 

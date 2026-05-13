@@ -11,11 +11,12 @@ import {
 } from "lucide-react";
 import { StatCard } from "@/components/stat-card";
 import { usePapers } from "@/hooks/usePapers";
+import { useAllTasks } from "@/hooks/useTasks";
 import { useAuthStore } from "@/store/auth.store";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import api from "@/lib/axios";
-import type { Paper } from "@/types";
+import type { Paper, Task } from "@/types";
 
 const STATUS_PHASE: Record<string, string> = {
   idea_proposed: "Planning", topic_discussion: "Planning", literature_review: "Planning",
@@ -50,6 +51,7 @@ export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const { data: papers, isLoading: papersLoading } = usePapers({ page_size: 5 });
   const { data: stats } = useDashboardStats();
+  const { data: tasksData } = useAllTasks();
 
   const totalPapers = stats?.total_papers ?? 0;
   const pendingTasks = stats?.pending_tasks ?? 0;
@@ -60,6 +62,19 @@ export default function DashboardPage() {
     papers?.results.filter((p: Paper) =>
       !["published", "rejected", "withdrawn"].includes(p.status)
     ).length ?? 0;
+
+  const now = new Date();
+  const soon = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  const upcomingTasks = (tasksData?.results ?? [])
+    .filter((t: Task) => t.deadline && !["completed", "blocked"].includes(t.status))
+    .filter((t: Task) => {
+      const d = new Date(t.deadline!);
+      return d >= now && d <= soon;
+    })
+    .sort((a: Task, b: Task) =>
+      new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime()
+    )
+    .slice(0, 5);
 
   return (
     <div className="space-y-8">
@@ -166,18 +181,46 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Upcoming deadlines placeholder */}
+      {/* Upcoming deadlines */}
       <Card className="shadow-none border">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
             Upcoming Deadlines
+            <span className="ml-auto text-xs font-normal text-muted-foreground">Next 14 days</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground py-4 text-center">
-            No upcoming deadlines — milestone tracking comes in Phase 2.
-          </p>
+        <CardContent className="p-0">
+          {upcomingTasks.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center px-6">
+              No tasks due in the next 14 days.
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {upcomingTasks.map((t: Task) => {
+                const deadline = new Date(t.deadline!);
+                const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                return (
+                  <li key={t.id} className="flex items-center gap-4 px-6 py-3.5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{t.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+                        {t.status.replace("_", " ")} · {t.priority} priority
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-xs font-medium tabular-nums">
+                        {deadline.toLocaleDateString()}
+                      </p>
+                      <p className={`text-xs mt-0.5 ${daysLeft <= 3 ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                        {daysLeft === 0 ? "Today" : daysLeft === 1 ? "Tomorrow" : `${daysLeft}d left`}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </div>
