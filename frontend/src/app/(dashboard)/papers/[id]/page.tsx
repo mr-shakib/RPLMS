@@ -2,22 +2,31 @@
 
 import { use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, User, ExternalLink, CalendarDays, CheckCircle2, Circle, Clock, AlertCircle } from "lucide-react";
+import {
+  ArrowLeft, User, ExternalLink, CalendarDays,
+  CheckCircle2, Circle, Clock, AlertCircle, Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { usePaper, usePaperTransition } from "@/hooks/usePapers";
+import { usePaperTasks } from "@/hooks/useTasks";
+import { useDeleteAuthor } from "@/hooks/useAuthors";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ProgressBar } from "@/components/progress-bar";
+import { CreateTaskDialog } from "@/components/create-task-dialog";
+import { AddAuthorDialog } from "@/components/add-author-dialog";
+import { FileUploadZone } from "@/components/file-upload-zone";
 import {
   PAPER_STATUS_LABEL,
   STATUS_TRANSITIONS,
   STATUS_PHASE_COLOR,
 } from "@/types/paper";
 import type { PaperDetail, Milestone } from "@/types/paper";
+import type { Task } from "@/types";
 
 const MILESTONE_ICON = {
   pending: Circle,
@@ -33,11 +42,29 @@ const MILESTONE_COLOR = {
   overdue: "text-red-500",
 };
 
+const TASK_STATUS_COLOR: Record<string, string> = {
+  todo: "bg-zinc-100 text-zinc-700",
+  in_progress: "bg-blue-50 text-blue-700",
+  waiting_review: "bg-yellow-50 text-yellow-700",
+  completed: "bg-green-50 text-green-700",
+  blocked: "bg-red-50 text-red-700",
+};
+
+const PRIORITY_DOT: Record<string, string> = {
+  low: "bg-zinc-400",
+  medium: "bg-blue-500",
+  high: "bg-orange-500",
+  urgent: "bg-red-600",
+};
+
 export default function PaperDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+
   const { data: paper, isLoading, error } = usePaper(id);
   const transition = usePaperTransition(id);
+  const { data: tasksData } = usePaperTasks(id);
+  const deleteAuthor = useDeleteAuthor(id);
 
   if (isLoading) {
     return (
@@ -51,21 +78,20 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
     return (
       <div className="flex flex-col items-center gap-3 py-24">
         <p className="text-sm text-muted-foreground">Paper not found.</p>
-        <Button variant="outline" size="sm" onClick={() => router.back()}>
-          Go back
-        </Button>
+        <Button variant="outline" size="sm" onClick={() => router.back()}>Go back</Button>
       </div>
     );
   }
 
   const p = paper as PaperDetail;
+  const tasks: Task[] = tasksData?.results ?? [];
   const availableTransitions = STATUS_TRANSITIONS[p.status] ?? [];
   const statusColor = STATUS_PHASE_COLOR[p.status] ?? "bg-zinc-100 text-zinc-700";
 
   const handleTransition = (t: string, label: string) => {
     transition.mutate(t, {
       onSuccess: () => toast.success(`Status updated: ${label}`),
-      onError: () => toast.error("Transition failed. Check if it's allowed from the current status."),
+      onError: () => toast.error("Transition not allowed from current status."),
     });
   };
 
@@ -101,9 +127,8 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
 
-          {/* Transition buttons */}
           {availableTransitions.length > 0 && (
-            <div className="flex gap-2 shrink-0">
+            <div className="flex gap-2 shrink-0 flex-wrap">
               {availableTransitions.map(({ label, transition: t, variant = "default" }) => (
                 <Button
                   key={t}
@@ -141,18 +166,23 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
       {/* Tabs */}
       <Tabs defaultValue="overview">
         <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 gap-0">
-          {["overview", "authors", "milestones", "metadata"].map((tab) => (
+          {["overview", "authors", "tasks", "files", "milestones", "metadata"].map((tab) => (
             <TabsTrigger
               key={tab}
               value={tab}
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-zinc-900 data-[state=active]:bg-transparent capitalize pb-2 px-4"
             >
               {tab}
+              {tab === "tasks" && tasks.length > 0 && (
+                <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-xs tabular-nums">
+                  {tasks.length}
+                </span>
+              )}
             </TabsTrigger>
           ))}
         </TabsList>
 
-        {/* Overview tab */}
+        {/* Overview */}
         <TabsContent value="overview" className="mt-6 space-y-5">
           {[
             { label: "Abstract", value: p.abstract },
@@ -164,9 +194,7 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
           ].map(({ label, value }) =>
             value ? (
               <div key={label} className="space-y-1.5">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {label}
-                </h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</h3>
                 <p className="text-sm leading-relaxed">{value}</p>
               </div>
             ) : null
@@ -174,9 +202,7 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
 
           {p.keywords.length > 0 && (
             <div className="space-y-1.5">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Keywords
-              </h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Keywords</h3>
               <div className="flex flex-wrap gap-1.5">
                 {p.keywords.map((kw) => (
                   <Badge key={kw} variant="secondary" className="text-xs">{kw}</Badge>
@@ -203,8 +229,12 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </TabsContent>
 
-        {/* Authors tab */}
-        <TabsContent value="authors" className="mt-6">
+        {/* Authors */}
+        <TabsContent value="authors" className="mt-6 space-y-4">
+          <div className="flex justify-end">
+            <AddAuthorDialog paperId={id} />
+          </div>
+
           {p.authors.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10">No authors added yet.</p>
           ) : (
@@ -225,21 +255,36 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
                       {author.affiliation}{author.department ? ` · ${author.department}` : ""}
                     </p>
                   </div>
-                  <div className="text-right shrink-0 space-y-1">
-                    <p className="text-xs text-muted-foreground">{author.contribution_percentage}% contribution</p>
-                    {author.orcid && (
-                      <p className="text-xs font-mono text-muted-foreground">{author.orcid}</p>
-                    )}
-                    {author.google_scholar_link && (
-                      <a
-                        href={author.google_scholar_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
-                      >
-                        Scholar <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="text-right space-y-0.5">
+                      <p className="text-xs text-muted-foreground">{author.contribution_percentage}%</p>
+                      {author.orcid && (
+                        <p className="text-xs font-mono text-muted-foreground">{author.orcid}</p>
+                      )}
+                      {author.google_scholar_link && (
+                        <a
+                          href={author.google_scholar_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                        >
+                          Scholar <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50"
+                      onClick={() =>
+                        deleteAuthor.mutate(author.id, {
+                          onSuccess: () => toast.success("Author removed."),
+                          onError: () => toast.error("Failed to remove author."),
+                        })
+                      }
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -247,7 +292,45 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </TabsContent>
 
-        {/* Milestones tab */}
+        {/* Tasks */}
+        <TabsContent value="tasks" className="mt-6 space-y-4">
+          <div className="flex justify-end">
+            <CreateTaskDialog paperId={id} />
+          </div>
+
+          {tasks.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-10">No tasks yet.</p>
+          ) : (
+            <div className="divide-y rounded-xl border bg-white">
+              {tasks.map((task: Task) => (
+                <div key={task.id} className="flex items-center gap-4 px-5 py-3.5">
+                  <span className={`h-2 w-2 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{task.title}</p>
+                    {task.deadline && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Due {new Date(task.deadline).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs shrink-0 capitalize ${TASK_STATUS_COLOR[task.status]}`}
+                  >
+                    {task.status.replace("_", " ")}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Files */}
+        <TabsContent value="files" className="mt-6">
+          <FileUploadZone paperId={id} />
+        </TabsContent>
+
+        {/* Milestones */}
         <TabsContent value="milestones" className="mt-6">
           {p.milestones.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10">No milestones yet.</p>
@@ -260,12 +343,8 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
                     <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${MILESTONE_COLOR[m.status]}`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{m.title}</p>
-                      {m.description && (
-                        <p className="text-sm text-muted-foreground mt-0.5">{m.description}</p>
-                      )}
-                      {m.comments && (
-                        <p className="text-xs text-muted-foreground mt-1 italic">{m.comments}</p>
-                      )}
+                      {m.description && <p className="text-sm text-muted-foreground mt-0.5">{m.description}</p>}
+                      {m.comments && <p className="text-xs text-muted-foreground mt-1 italic">{m.comments}</p>}
                     </div>
                     <div className="text-right shrink-0 space-y-1">
                       <div className="flex items-center gap-1 text-xs text-muted-foreground justify-end">
@@ -277,8 +356,7 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
                         className={`text-xs capitalize ${
                           m.status === "completed" ? "text-green-700 border-green-200" :
                           m.status === "overdue" ? "text-red-700 border-red-200" :
-                          m.status === "in_progress" ? "text-blue-700 border-blue-200" :
-                          ""
+                          m.status === "in_progress" ? "text-blue-700 border-blue-200" : ""
                         }`}
                       >
                         {m.status.replace("_", " ")}
@@ -291,7 +369,7 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </TabsContent>
 
-        {/* Metadata tab */}
+        {/* Metadata */}
         <TabsContent value="metadata" className="mt-6">
           {!p.metadata ? (
             <p className="text-sm text-muted-foreground text-center py-10">No publication metadata yet.</p>
