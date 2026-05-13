@@ -1,16 +1,17 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, User, ExternalLink, CalendarDays,
-  CheckCircle2, Circle, Clock, AlertCircle, Trash2,
+  CheckCircle2, Circle, Clock, AlertCircle, Trash2, Edit2, Check, X,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { usePaper, usePaperTransition } from "@/hooks/usePapers";
+import { usePaper, usePaperTransition, useUpdatePaper } from "@/hooks/usePapers";
 import { usePaperTasks } from "@/hooks/useTasks";
 import { useDeleteAuthor } from "@/hooks/useAuthors";
+import { useDeleteMilestone } from "@/hooks/useMilestones";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,7 @@ import { ProgressBar } from "@/components/progress-bar";
 import { CreateTaskDialog } from "@/components/create-task-dialog";
 import { AddAuthorDialog } from "@/components/add-author-dialog";
 import { FileUploadZone } from "@/components/file-upload-zone";
+import { CreateMilestoneDialog } from "@/components/create-milestone-dialog";
 import {
   PAPER_STATUS_LABEL,
   STATUS_TRANSITIONS,
@@ -57,14 +59,26 @@ const PRIORITY_DOT: Record<string, string> = {
   urgent: "bg-red-600",
 };
 
+const PROGRESS_FIELDS = [
+  { key: "literature_review_progress" as const, label: "Literature Review", color: "bg-blue-500" },
+  { key: "dataset_progress" as const, label: "Dataset", color: "bg-yellow-500" },
+  { key: "experiment_progress" as const, label: "Experiments", color: "bg-orange-500" },
+  { key: "writing_progress" as const, label: "Writing", color: "bg-purple-500" },
+  { key: "revision_progress" as const, label: "Revision", color: "bg-green-500" },
+];
+
 export default function PaperDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const [editingProgress, setEditingProgress] = useState(false);
+  const [progressDraft, setProgressDraft] = useState<Record<string, number>>({});
 
   const { data: paper, isLoading, error } = usePaper(id);
   const transition = usePaperTransition(id);
+  const updatePaper = useUpdatePaper(id);
   const { data: tasksData } = usePaperTasks(id);
   const deleteAuthor = useDeleteAuthor(id);
+  const deleteMilestone = useDeleteMilestone(id);
 
   if (isLoading) {
     return (
@@ -92,6 +106,24 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
     transition.mutate(t, {
       onSuccess: () => toast.success(`Status updated: ${label}`),
       onError: () => toast.error("Transition not allowed from current status."),
+    });
+  };
+
+  const startEditProgress = () => {
+    setProgressDraft({
+      literature_review_progress: p.literature_review_progress,
+      dataset_progress: p.dataset_progress,
+      experiment_progress: p.experiment_progress,
+      writing_progress: p.writing_progress,
+      revision_progress: p.revision_progress,
+    });
+    setEditingProgress(true);
+  };
+
+  const saveProgress = () => {
+    updatePaper.mutate(progressDraft, {
+      onSuccess: () => { toast.success("Progress updated."); setEditingProgress(false); },
+      onError: () => toast.error("Failed to update progress."),
     });
   };
 
@@ -150,16 +182,62 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
       {/* Progress overview */}
       <Card className="shadow-none border">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Overall Progress — {p.overall_progress}%
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Overall Progress — {p.overall_progress}%
+            </CardTitle>
+            {!editingProgress ? (
+              <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={startEditProgress}>
+                <Edit2 className="h-3 w-3" />
+                Edit
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs text-muted-foreground"
+                  onClick={() => setEditingProgress(false)}
+                  disabled={updatePaper.isPending}
+                >
+                  <X className="h-3 w-3" />
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs"
+                  onClick={saveProgress}
+                  disabled={updatePaper.isPending}
+                >
+                  <Check className="h-3 w-3" />
+                  Save
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <ProgressBar label="Literature Review" value={p.literature_review_progress} color="bg-blue-500" />
-          <ProgressBar label="Dataset" value={p.dataset_progress} color="bg-yellow-500" />
-          <ProgressBar label="Experiments" value={p.experiment_progress} color="bg-orange-500" />
-          <ProgressBar label="Writing" value={p.writing_progress} color="bg-purple-500" />
-          <ProgressBar label="Revision" value={p.revision_progress} color="bg-green-500" />
+        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {PROGRESS_FIELDS.map(({ key, label, color }) =>
+            editingProgress ? (
+              <div key={key} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{label}</span>
+                  <span className="text-xs font-medium tabular-nums">{progressDraft[key] ?? 0}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={progressDraft[key] ?? 0}
+                  onChange={(e) => setProgressDraft((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
+                  className="w-full accent-zinc-800 cursor-pointer"
+                />
+              </div>
+            ) : (
+              <ProgressBar key={key} label={label} value={p[key]} color={color} />
+            )
+          )}
         </CardContent>
       </Card>
 
@@ -331,7 +409,11 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
         </TabsContent>
 
         {/* Milestones */}
-        <TabsContent value="milestones" className="mt-6">
+        <TabsContent value="milestones" className="mt-6 space-y-4">
+          <div className="flex justify-end">
+            <CreateMilestoneDialog paperId={id} />
+          </div>
+
           {p.milestones.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10">No milestones yet.</p>
           ) : (
@@ -346,21 +428,37 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
                       {m.description && <p className="text-sm text-muted-foreground mt-0.5">{m.description}</p>}
                       {m.comments && <p className="text-xs text-muted-foreground mt-1 italic">{m.comments}</p>}
                     </div>
-                    <div className="text-right shrink-0 space-y-1">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground justify-end">
-                        <CalendarDays className="h-3 w-3" />
-                        {new Date(m.deadline).toLocaleDateString()}
+                    <div className="flex items-start gap-3 shrink-0">
+                      <div className="text-right space-y-1">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground justify-end">
+                          <CalendarDays className="h-3 w-3" />
+                          {new Date(m.deadline).toLocaleDateString()}
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={`text-xs capitalize ${
+                            m.status === "completed" ? "text-green-700 border-green-200" :
+                            m.status === "overdue" ? "text-red-700 border-red-200" :
+                            m.status === "in_progress" ? "text-blue-700 border-blue-200" : ""
+                          }`}
+                        >
+                          {m.status.replace("_", " ")}
+                        </Badge>
                       </div>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs capitalize ${
-                          m.status === "completed" ? "text-green-700 border-green-200" :
-                          m.status === "overdue" ? "text-red-700 border-red-200" :
-                          m.status === "in_progress" ? "text-blue-700 border-blue-200" : ""
-                        }`}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50"
+                        disabled={deleteMilestone.isPending}
+                        onClick={() =>
+                          deleteMilestone.mutate(m.id, {
+                            onSuccess: () => toast.success("Milestone deleted."),
+                            onError: () => toast.error("Failed to delete milestone."),
+                          })
+                        }
                       >
-                        {m.status.replace("_", " ")}
-                      </Badge>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
                 );
