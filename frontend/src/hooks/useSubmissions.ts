@@ -19,6 +19,14 @@ export function useCreateVenue() {
   });
 }
 
+export function useDeleteVenue() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => venuesService.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["venues"] }),
+  });
+}
+
 // Submissions
 export function useSubmissions(paperId?: number | string) {
   return useQuery({
