@@ -10,6 +10,9 @@ class ReviewViewSet(viewsets.ModelViewSet):
     filterset_fields = ["submission", "revision_type"]
 
     def get_queryset(self):
-        return Review.objects.filter(
-            submission__paper__authors__user=self.request.user
+        user = self.request.user
+        if user.role in ("super_admin", "supervisor"):
+            return Review.objects.select_related("submission").all()
+        return Review.objects.select_related("submission").filter(
+            submission__paper__authors__user=user
         ).distinct()

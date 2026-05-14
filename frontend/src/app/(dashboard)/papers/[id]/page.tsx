@@ -12,6 +12,7 @@ import { usePaper, usePaperTransition, useUpdatePaper } from "@/hooks/usePapers"
 import { usePaperTasks } from "@/hooks/useTasks";
 import { useDeleteAuthor } from "@/hooks/useAuthors";
 import { useDeleteMilestone } from "@/hooks/useMilestones";
+import { useSubmissions, useDeleteSubmission, useReviews, useDeleteReview } from "@/hooks/useSubmissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,13 +24,15 @@ import { AddAuthorDialog } from "@/components/add-author-dialog";
 import { FileUploadZone } from "@/components/file-upload-zone";
 import { CreateMilestoneDialog } from "@/components/create-milestone-dialog";
 import { PaperLifecycle } from "@/components/paper-lifecycle";
+import { AddSubmissionDialog } from "@/components/add-submission-dialog";
+import { AddReviewDialog } from "@/components/add-review-dialog";
 import {
   PAPER_STATUS_LABEL,
   STATUS_TRANSITIONS,
   STATUS_PHASE_COLOR,
 } from "@/types/paper";
 import type { PaperDetail, Milestone } from "@/types/paper";
-import type { Task } from "@/types";
+import type { Task, Submission } from "@/types";
 
 const MILESTONE_ICON = {
   pending: Circle,
@@ -60,6 +63,104 @@ const PRIORITY_DOT: Record<string, string> = {
   urgent: "bg-red-600",
 };
 
+const SUBMISSION_STATUS_COLOR: Record<string, string> = {
+  draft: "bg-zinc-100 text-zinc-700",
+  submitted: "bg-blue-50 text-blue-700",
+  under_review: "bg-yellow-50 text-yellow-700",
+  revision_required: "bg-orange-50 text-orange-700",
+  accepted: "bg-green-50 text-green-700",
+  rejected: "bg-red-50 text-red-700",
+  withdrawn: "bg-zinc-100 text-zinc-500",
+  published: "bg-purple-50 text-purple-700",
+};
+
+const REVISION_TYPE_LABEL: Record<string, string> = {
+  major: "Major",
+  minor: "Minor",
+  camera_ready: "Camera Ready",
+  accepted: "Accept",
+  rejected: "Reject",
+};
+
+function SubmissionCard({ sub, paperId }: { sub: Submission; paperId: string }) {
+  const { data: reviews = [] } = useReviews(sub.id);
+  const deleteReview = useDeleteReview(sub.id);
+  const deleteSub = useDeleteSubmission(paperId);
+
+  return (
+    <div className="rounded-xl border bg-white divide-y">
+      <div className="flex items-start gap-4 px-5 py-4">
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold">{sub.venue_detail?.name ?? `Venue #${sub.venue}`}</span>
+            {sub.venue_detail?.quartile && sub.venue_detail.quartile !== "unranked" && (
+              <Badge variant="outline" className="text-xs">{sub.venue_detail.quartile}</Badge>
+            )}
+            <Badge className={`text-xs px-2 py-0.5 border-0 capitalize ${SUBMISSION_STATUS_COLOR[sub.status] ?? ""}`}>
+              {sub.status.replace("_", " ")}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span>Attempt #{sub.attempt_number}</span>
+            {sub.submitted_at && <span>Submitted {new Date(sub.submitted_at).toLocaleDateString()}</span>}
+            {sub.notes && <span className="truncate max-w-xs">{sub.notes}</span>}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <AddReviewDialog submissionId={sub.id} />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50"
+            onClick={() => deleteSub.mutate(sub.id, {
+              onSuccess: () => toast.success("Submission removed."),
+              onError: () => toast.error("Failed to remove submission."),
+            })}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {reviews.length > 0 && (
+        <div className="divide-y bg-zinc-50/50">
+          {reviews.map((rev) => (
+            <div key={rev.id} className="flex gap-4 px-6 py-3.5">
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-muted-foreground">{rev.reviewer_label}</span>
+                  {rev.revision_type && (
+                    <Badge variant="outline" className="text-xs px-1.5 py-0">
+                      {REVISION_TYPE_LABEL[rev.revision_type] ?? rev.revision_type}
+                    </Badge>
+                  )}
+                  {rev.received_at && (
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(rev.received_at).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{rev.comments}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                onClick={() => deleteReview.mutate(rev.id, {
+                  onSuccess: () => toast.success("Review removed."),
+                  onError: () => toast.error("Failed to remove review."),
+                })}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const PROGRESS_FIELDS = [
   { key: "literature_review_progress" as const, label: "Literature Review", color: "bg-blue-500" },
   { key: "dataset_progress" as const, label: "Dataset", color: "bg-yellow-500" },
@@ -80,6 +181,7 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
   const { data: tasksData } = usePaperTasks(id);
   const deleteAuthor = useDeleteAuthor(id);
   const deleteMilestone = useDeleteMilestone(id);
+  const { data: submissions = [] } = useSubmissions(id);
 
   if (isLoading) {
     return (
@@ -245,7 +347,7 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
       {/* Tabs */}
       <Tabs defaultValue="overview">
         <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 gap-0">
-          {["overview", "lifecycle", "authors", "tasks", "files", "milestones", "metadata"].map((tab) => (
+          {["overview", "lifecycle", "authors", "tasks", "submissions", "files", "milestones", "metadata"].map((tab) => (
             <TabsTrigger
               key={tab}
               value={tab}
@@ -255,6 +357,11 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
               {tab === "tasks" && tasks.length > 0 && (
                 <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-xs tabular-nums">
                   {tasks.length}
+                </span>
+              )}
+              {tab === "submissions" && submissions.length > 0 && (
+                <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-xs tabular-nums">
+                  {submissions.length}
                 </span>
               )}
             </TabsTrigger>
@@ -404,6 +511,22 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
                     {task.status.replace("_", " ")}
                   </Badge>
                 </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Submissions */}
+        <TabsContent value="submissions" className="mt-6 space-y-4">
+          <div className="flex justify-end">
+            <AddSubmissionDialog paperId={id} />
+          </div>
+          {submissions.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-10">No submissions yet.</p>
+          ) : (
+            <div className="space-y-4">
+              {submissions.map((sub: Submission) => (
+                <SubmissionCard key={sub.id} sub={sub} paperId={id} />
               ))}
             </div>
           )}

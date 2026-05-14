@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLogout } from "@/hooks/useAuth";
@@ -23,6 +24,7 @@ const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/papers", label: "Papers", icon: FileText },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/submissions", label: "Submissions", icon: Send },
   { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];

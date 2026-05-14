@@ -79,3 +79,63 @@ export interface PaginatedResponse<T> {
   previous: string | null;
   results: T[];
 }
+
+export type VenueType = "journal" | "conference" | "workshop" | "preprint";
+export type Quartile = "Q1" | "Q2" | "Q3" | "Q4" | "unranked";
+
+export interface Venue {
+  id: number;
+  name: string;
+  publisher: string;
+  venue_type: VenueType;
+  quartile: Quartile;
+  impact_factor: number | null;
+  submission_link: string;
+  description: string;
+  created_at: string;
+}
+
+export type SubmissionStatus =
+  | "draft" | "submitted" | "under_review" | "revision_required"
+  | "accepted" | "rejected" | "withdrawn" | "published";
+
+export interface Submission {
+  id: number;
+  paper: number;
+  venue: number;
+  venue_detail: {
+    id: number;
+    name: string;
+    venue_type: VenueType;
+    quartile: Quartile;
+    impact_factor: number | null;
+    submission_link: string;
+  };
+  status: SubmissionStatus;
+  attempt_number: number;
+  submitted_at: string | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type RevisionType = "major" | "minor" | "camera_ready" | "accepted" | "rejected";
+
+export interface ReviewerResponse {
+  id: number;
+  review: number;
+  response_document_url: string;
+  change_log: string;
+  submitted_at: string;
+}
+
+export interface Review {
+  id: number;
+  submission: number;
+  reviewer_label: string;
+  comments: string;
+  revision_type: RevisionType;
+  received_at: string | null;
+  created_at: string;
+  response: ReviewerResponse | null;
+}
