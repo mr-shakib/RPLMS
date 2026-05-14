@@ -1,9 +1,9 @@
 import api from "@/lib/axios";
-import type { Venue, Submission, Review, ReviewerResponse } from "@/types";
+import type { Venue, Submission, Review, ReviewerResponse, PaginatedResponse } from "@/types";
 
 export const venuesService = {
   list: (params?: Record<string, unknown>) =>
-    api.get<Venue[]>("/submissions/venues/", { params }),
+    api.get<PaginatedResponse<Venue>>("/submissions/venues/", { params }),
 
   get: (id: number) => api.get<Venue>(`/submissions/venues/${id}/`),
 
@@ -17,7 +17,7 @@ export const venuesService = {
 
 export const submissionsService = {
   list: (params?: Record<string, unknown>) =>
-    api.get<Submission[]>("/submissions/", { params }),
+    api.get<PaginatedResponse<Submission>>("/submissions/", { params }),
 
   get: (id: number) => api.get<Submission>(`/submissions/${id}/`),
 
@@ -31,7 +31,7 @@ export const submissionsService = {
 
 export const reviewsService = {
   list: (params?: Record<string, unknown>) =>
-    api.get<Review[]>("/reviews/", { params }),
+    api.get<PaginatedResponse<Review>>("/reviews/", { params }),
 
   get: (id: number) => api.get<Review>(`/reviews/${id}/`),
 

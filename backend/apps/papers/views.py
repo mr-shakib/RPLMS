@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.db.models import Q
 
 from .models import Paper, PaperAuthor, Milestone
 from .serializers import PaperSerializer, PaperAuthorSerializer, MilestoneSerializer
@@ -16,10 +17,22 @@ class PaperViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.role in ("super_admin", "supervisor"):
             return Paper.objects.select_related("supervisor", "created_by").all()
-        return Paper.objects.filter(authors__user=user).distinct()
+        return Paper.objects.filter(
+            Q(authors__user=user) | Q(created_by=user)
+        ).distinct()
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        user = self.request.user
+        paper = serializer.save(created_by=user)
+        PaperAuthor.objects.create(
+            paper=paper,
+            user=user,
+            name=user.full_name,
+            email=user.email,
+            author_order=1,
+            is_corresponding=True,
+            contribution_percentage=100,
+        )
 
 
 class PaperTransitionView(APIView):

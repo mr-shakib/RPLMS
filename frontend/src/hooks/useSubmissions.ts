@@ -6,7 +6,7 @@ import type { Venue, Submission, Review } from "@/types";
 export function useVenues(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: ["venues", params],
-    queryFn: () => venuesService.list(params).then((r) => r.data),
+    queryFn: () => venuesService.list(params).then((r) => r.data.results),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -24,7 +24,7 @@ export function useSubmissions(paperId?: number | string) {
   return useQuery({
     queryKey: ["submissions", paperId],
     queryFn: () =>
-      submissionsService.list(paperId ? { paper: paperId } : undefined).then((r) => r.data),
+      submissionsService.list(paperId ? { paper: paperId } : undefined).then((r) => r.data.results),
   });
 }
 
@@ -67,7 +67,7 @@ export function useReviews(submissionId?: number) {
   return useQuery({
     queryKey: ["reviews", submissionId],
     queryFn: () =>
-      reviewsService.list(submissionId ? { submission: submissionId } : undefined).then((r) => r.data),
+      reviewsService.list(submissionId ? { submission: submissionId } : undefined).then((r) => r.data.results),
     enabled: submissionId != null,
   });
 }
