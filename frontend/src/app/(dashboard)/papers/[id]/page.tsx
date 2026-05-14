@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, User, ExternalLink, CalendarDays,
-  CheckCircle2, Circle, Clock, AlertCircle, Trash2, Edit2, Check, X,
+  CheckCircle2, Circle, Clock, AlertCircle, Trash2, Edit2, Check, X, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -13,11 +13,18 @@ import { usePaperTasks } from "@/hooks/useTasks";
 import { useDeleteAuthor } from "@/hooks/useAuthors";
 import { useDeleteMilestone } from "@/hooks/useMilestones";
 import { useSubmissions, useDeleteSubmission, useReviews, useDeleteReview } from "@/hooks/useSubmissions";
+import { useUsers } from "@/hooks/useUsers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { ProgressBar } from "@/components/progress-bar";
 import { CreateTaskDialog } from "@/components/create-task-dialog";
 import { AddAuthorDialog } from "@/components/add-author-dialog";
@@ -33,6 +40,35 @@ import {
 } from "@/types/paper";
 import type { PaperDetail, Milestone } from "@/types/paper";
 import type { Task, Submission } from "@/types";
+
+const DOMAIN_OPTIONS = [
+  { value: "ml", label: "Machine Learning" },
+  { value: "nlp", label: "NLP" },
+  { value: "cv", label: "Computer Vision" },
+  { value: "healthcare", label: "Healthcare AI" },
+  { value: "security", label: "Cybersecurity" },
+  { value: "other", label: "Other" },
+];
+const DOMAIN_LABEL: Record<string, string> = Object.fromEntries(
+  DOMAIN_OPTIONS.map(({ value, label }) => [value, label])
+);
+
+type InfoDraft = {
+  title: string;
+  short_title: string;
+  domain: string;
+  abstract: string;
+  problem_statement: string;
+  research_gap: string;
+  objective: string;
+  methodology: string;
+  expected_contribution: string;
+  keywords: string[];
+  tags: string[];
+  funding_source: string;
+  ethics_approval_number: string;
+  supervisor: number | null;
+};
 
 const MILESTONE_ICON = {
   pending: Circle,
@@ -174,6 +210,10 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
   const router = useRouter();
   const [editingProgress, setEditingProgress] = useState(false);
   const [progressDraft, setProgressDraft] = useState<Record<string, number>>({});
+  const [editingInfo, setEditingInfo] = useState(false);
+  const [infoDraft, setInfoDraft] = useState<InfoDraft | null>(null);
+  const [kwInput, setKwInput] = useState("");
+  const [tagInput, setTagInput] = useState("");
 
   const { data: paper, isLoading, error } = usePaper(id);
   const transition = usePaperTransition(id);
@@ -182,6 +222,7 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
   const deleteAuthor = useDeleteAuthor(id);
   const deleteMilestone = useDeleteMilestone(id);
   const { data: submissions = [] } = useSubmissions(id);
+  const { data: users } = useUsers();
 
   if (isLoading) {
     return (
@@ -227,6 +268,36 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
     updatePaper.mutate(progressDraft, {
       onSuccess: () => { toast.success("Progress updated."); setEditingProgress(false); },
       onError: () => toast.error("Failed to update progress."),
+    });
+  };
+
+  const startEditInfo = () => {
+    setInfoDraft({
+      title: p.title,
+      short_title: p.short_title ?? "",
+      domain: p.domain,
+      abstract: p.abstract ?? "",
+      problem_statement: p.problem_statement ?? "",
+      research_gap: p.research_gap ?? "",
+      objective: p.objective ?? "",
+      methodology: p.methodology ?? "",
+      expected_contribution: p.expected_contribution ?? "",
+      keywords: [...(p.keywords ?? [])],
+      tags: [...(p.tags ?? [])],
+      funding_source: p.funding_source ?? "",
+      ethics_approval_number: p.ethics_approval_number ?? "",
+      supervisor: p.supervisor?.id ?? null,
+    });
+    setEditingInfo(true);
+  };
+
+  const cancelEditInfo = () => { setEditingInfo(false); setInfoDraft(null); setKwInput(""); setTagInput(""); };
+
+  const saveInfo = () => {
+    if (!infoDraft) return;
+    updatePaper.mutate(infoDraft as Parameters<typeof updatePaper.mutate>[0], {
+      onSuccess: () => { toast.success("Paper info updated."); cancelEditInfo(); },
+      onError: () => toast.error("Failed to save changes."),
     });
   };
 
@@ -374,46 +445,259 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
         </TabsContent>
 
         {/* Overview */}
-        <TabsContent value="overview" className="mt-6 space-y-5">
-          {[
-            { label: "Abstract", value: p.abstract },
-            { label: "Problem Statement", value: p.problem_statement },
-            { label: "Research Gap", value: p.research_gap },
-            { label: "Objective", value: p.objective },
-            { label: "Methodology", value: p.methodology },
-            { label: "Expected Contribution", value: p.expected_contribution },
-          ].map(({ label, value }) =>
-            value ? (
-              <div key={label} className="space-y-1.5">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</h3>
-                <p className="text-sm leading-relaxed">{value}</p>
+        <TabsContent value="overview" className="mt-6">
+          {editingInfo && infoDraft ? (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Edit paper info</h3>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={cancelEditInfo} disabled={updatePaper.isPending}>
+                    <X className="h-3 w-3" /> Cancel
+                  </Button>
+                  <Button size="sm" className="h-7 gap-1.5 text-xs" onClick={saveInfo} disabled={updatePaper.isPending}>
+                    {updatePaper.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                    Save
+                  </Button>
+                </div>
               </div>
-            ) : null
-          )}
 
-          {p.keywords.length > 0 && (
-            <div className="space-y-1.5">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Keywords</h3>
-              <div className="flex flex-wrap gap-1.5">
-                {p.keywords.map((kw) => (
-                  <Badge key={kw} variant="secondary" className="text-xs">{kw}</Badge>
-                ))}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="sm:col-span-2 space-y-1.5">
+                  <Label>Title</Label>
+                  <Input value={infoDraft.title} onChange={(e) => setInfoDraft((d) => d && ({ ...d, title: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Short title</Label>
+                  <Input placeholder="Abbreviated title" value={infoDraft.short_title} onChange={(e) => setInfoDraft((d) => d && ({ ...d, short_title: e.target.value }))} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Domain</Label>
+                  <Select value={infoDraft.domain} onValueChange={(v) => setInfoDraft((d) => d && ({ ...d, domain: v as string }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {DOMAIN_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Supervisor</Label>
+                  <Select
+                    value={infoDraft.supervisor ? String(infoDraft.supervisor) : ""}
+                    onValueChange={(v) => setInfoDraft((d) => d && ({ ...d, supervisor: v ? Number(v) : null }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {(users ?? []).map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.full_name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Abstract</Label>
+                <Textarea rows={4} placeholder="Brief summary of the research…" value={infoDraft.abstract} onChange={(e) => setInfoDraft((d) => d && ({ ...d, abstract: e.target.value }))} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Problem Statement</Label>
+                <Textarea rows={3} placeholder="What problem does this research address?" value={infoDraft.problem_statement} onChange={(e) => setInfoDraft((d) => d && ({ ...d, problem_statement: e.target.value }))} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Research Gap</Label>
+                <Textarea rows={3} placeholder="What gap in existing literature does this fill?" value={infoDraft.research_gap} onChange={(e) => setInfoDraft((d) => d && ({ ...d, research_gap: e.target.value }))} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Objective</Label>
+                <Textarea rows={2} placeholder="Primary research objective" value={infoDraft.objective} onChange={(e) => setInfoDraft((d) => d && ({ ...d, objective: e.target.value }))} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Methodology</Label>
+                <Textarea rows={3} placeholder="Research methodology and approach" value={infoDraft.methodology} onChange={(e) => setInfoDraft((d) => d && ({ ...d, methodology: e.target.value }))} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Expected Contribution</Label>
+                <Textarea rows={2} placeholder="What will this research contribute?" value={infoDraft.expected_contribution} onChange={(e) => setInfoDraft((d) => d && ({ ...d, expected_contribution: e.target.value }))} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Keywords</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Type a keyword and press Enter"
+                    value={kwInput}
+                    onChange={(e) => setKwInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const kw = kwInput.trim();
+                        if (kw && !infoDraft.keywords.includes(kw)) setInfoDraft((d) => d && ({ ...d, keywords: [...d.keywords, kw] }));
+                        setKwInput("");
+                      }
+                    }}
+                  />
+                </div>
+                {infoDraft.keywords.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {infoDraft.keywords.map((kw) => (
+                      <Badge key={kw} variant="secondary" className="gap-1 pr-1 text-xs">
+                        {kw}
+                        <button type="button" onClick={() => setInfoDraft((d) => d && ({ ...d, keywords: d.keywords.filter((k) => k !== kw) }))} className="rounded-full hover:bg-zinc-200 p-0.5">
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Tags</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Type a tag and press Enter"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const tag = tagInput.trim();
+                        if (tag && !infoDraft.tags.includes(tag)) setInfoDraft((d) => d && ({ ...d, tags: [...d.tags, tag] }));
+                        setTagInput("");
+                      }
+                    }}
+                  />
+                </div>
+                {infoDraft.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {infoDraft.tags.map((tag) => (
+                      <Badge key={tag} variant="outline" className="gap-1 pr-1 text-xs">
+                        {tag}
+                        <button type="button" onClick={() => setInfoDraft((d) => d && ({ ...d, tags: d.tags.filter((t) => t !== tag) }))} className="rounded-full hover:bg-zinc-100 p-0.5">
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Funding source</Label>
+                  <Input placeholder="e.g. NSF Grant #12345" value={infoDraft.funding_source} onChange={(e) => setInfoDraft((d) => d && ({ ...d, funding_source: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Ethics approval #</Label>
+                  <Input placeholder="e.g. IRB-2024-001" value={infoDraft.ethics_approval_number} onChange={(e) => setInfoDraft((d) => d && ({ ...d, ethics_approval_number: e.target.value }))} />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button variant="outline" size="sm" onClick={cancelEditInfo} disabled={updatePaper.isPending}>Cancel</Button>
+                <Button size="sm" onClick={saveInfo} disabled={updatePaper.isPending}>
+                  {updatePaper.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                  Save changes
+                </Button>
               </div>
             </div>
-          )}
+          ) : (
+            <div className="space-y-5">
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" className="gap-2" onClick={startEditInfo}>
+                  <Edit2 className="h-3.5 w-3.5" /> Edit info
+                </Button>
+              </div>
 
-          {(p.funding_source || p.ethics_approval_number) && (
-            <div className="grid grid-cols-2 gap-4 pt-1">
-              {p.funding_source && (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Funding</p>
-                  <p className="text-sm">{p.funding_source}</p>
+              {/* Core metadata strip */}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-xl border bg-white px-5 py-4 sm:grid-cols-3 lg:grid-cols-4">
+                <div className="space-y-0.5">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Domain</p>
+                  <p className="text-sm font-medium">{DOMAIN_LABEL[p.domain] ?? p.domain}</p>
+                </div>
+                {p.supervisor && (
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Supervisor</p>
+                    <p className="text-sm font-medium">{p.supervisor.full_name}</p>
+                  </div>
+                )}
+                {p.short_title && (
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Short title</p>
+                    <p className="text-sm font-medium">{p.short_title}</p>
+                  </div>
+                )}
+                <div className="space-y-0.5">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Created</p>
+                  <p className="text-sm font-medium">{new Date(p.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              {/* Research fields */}
+              {[
+                { label: "Abstract", value: p.abstract },
+                { label: "Problem Statement", value: p.problem_statement },
+                { label: "Research Gap", value: p.research_gap },
+                { label: "Objective", value: p.objective },
+                { label: "Methodology", value: p.methodology },
+                { label: "Expected Contribution", value: p.expected_contribution },
+              ].map(({ label, value }) =>
+                value ? (
+                  <div key={label} className="space-y-1.5">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</h3>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{value}</p>
+                  </div>
+                ) : null
+              )}
+
+              {p.keywords?.length > 0 && (
+                <div className="space-y-1.5">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Keywords</h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.keywords.map((kw) => <Badge key={kw} variant="secondary" className="text-xs">{kw}</Badge>)}
+                  </div>
                 </div>
               )}
-              {p.ethics_approval_number && (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Ethics #</p>
-                  <p className="text-sm">{p.ethics_approval_number}</p>
+
+              {p.tags?.length > 0 && (
+                <div className="space-y-1.5">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tags</h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.tags.map((tag) => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}
+                  </div>
+                </div>
+              )}
+
+              {(p.funding_source || p.ethics_approval_number) && (
+                <div className="grid grid-cols-2 gap-4">
+                  {p.funding_source && (
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide">Funding</p>
+                      <p className="text-sm">{p.funding_source}</p>
+                    </div>
+                  )}
+                  {p.ethics_approval_number && (
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide">Ethics #</p>
+                      <p className="text-sm">{p.ethics_approval_number}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!p.abstract && !p.problem_statement && !p.research_gap && !p.objective && (
+                <div className="rounded-xl border border-dashed py-12 text-center">
+                  <p className="text-sm text-muted-foreground">No research details added yet.</p>
+                  <Button variant="ghost" size="sm" className="mt-2 gap-2" onClick={startEditInfo}>
+                    <Edit2 className="h-3.5 w-3.5" /> Fill in paper details
+                  </Button>
                 </div>
               )}
             </div>
