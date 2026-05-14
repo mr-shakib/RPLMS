@@ -34,6 +34,14 @@ class ChangePasswordView(APIView):
         return Response({"detail": "Password changed."})
 
 
+class UserListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
+
+    def get_queryset(self):
+        return User.objects.filter(is_active=True).order_by("full_name")
+
+
 class ForgotPasswordView(APIView):
     permission_classes = [AllowAny]
 

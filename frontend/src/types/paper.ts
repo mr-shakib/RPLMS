@@ -107,16 +107,45 @@ export const PAPER_STATUS_LABEL: Record<PaperStatus, string> = {
 };
 
 export const STATUS_TRANSITIONS: Partial<Record<PaperStatus, { label: string; transition: string; variant?: "default" | "destructive" | "outline" }[]>> = {
-  idea_proposed: [{ label: "Start Topic Discussion", transition: "start_topic_discussion" }],
-  proposal_approved: [{ label: "Begin Development", transition: "begin_development" }],
-  supervisor_review: [{ label: "Move to Submission", transition: "move_to_submission" }],
+  // Planning
+  idea_proposed: [{ label: "Start Topic Discussion", transition: "to_topic_discussion" }],
+  topic_discussion: [{ label: "Begin Literature Review", transition: "to_literature_review" }],
+  literature_review: [{ label: "Proceed to Gap Analysis", transition: "to_gap_analysis" }],
+  gap_analysis: [{ label: "Start Proposal Drafting", transition: "to_proposal_drafting" }],
+  proposal_drafting: [{ label: "Approve Proposal", transition: "approve_proposal" }],
+  // Development
+  proposal_approved: [{ label: "Start Dataset Collection", transition: "to_dataset_collection" }],
+  dataset_collection: [{ label: "Begin Dataset Cleaning", transition: "to_dataset_cleaning" }],
+  dataset_cleaning: [{ label: "Start Model Development", transition: "to_model_development" }],
+  model_development: [{ label: "Begin Experimentation", transition: "to_experimentation" }],
+  experimentation: [{ label: "Move to Evaluation", transition: "to_evaluation" }],
+  evaluation: [{ label: "Analyse Results", transition: "to_result_analysis" }],
+  // Writing
+  result_analysis: [{ label: "Start Initial Draft", transition: "to_initial_draft" }],
+  initial_draft: [{ label: "Prepare Figures", transition: "to_figure_preparation" }],
+  figure_preparation: [{ label: "Begin Formatting", transition: "to_formatting" }],
+  formatting: [{ label: "Check Citations", transition: "to_citation_checking" }],
+  citation_checking: [{ label: "Grammar Review", transition: "to_grammar_review" }],
+  grammar_review: [{ label: "Internal Review", transition: "to_internal_review" }],
+  internal_review: [{ label: "Supervisor Review", transition: "to_supervisor_review" }],
+  // Submission
+  supervisor_review: [{ label: "Select Journal", transition: "to_journal_selection" }],
+  journal_selection: [{ label: "Mark Submission Ready", transition: "to_submission_ready" }],
   submission_ready: [{ label: "Submit", transition: "submit" }],
+  submitted: [{ label: "Mark Under Review", transition: "to_under_review" }],
   under_review: [
-    { label: "Revision Requested", transition: "request_revision" },
+    { label: "Request Revision", transition: "request_revision", variant: "outline" },
     { label: "Accept", transition: "accept" },
     { label: "Reject", transition: "reject", variant: "destructive" },
   ],
-  revision_requested: [{ label: "Accept", transition: "accept" }],
+  revision_requested: [
+    { label: "Resubmit", transition: "resubmit" },
+    { label: "Accept", transition: "accept" },
+  ],
+  resubmitted: [
+    { label: "Back to Under Review", transition: "back_to_under_review" },
+    { label: "Accept", transition: "accept" },
+  ],
   accepted: [{ label: "Mark Published", transition: "publish" }],
 };
 

@@ -26,14 +26,40 @@ class PaperTransitionView(APIView):
     permission_classes = [IsAuthenticated]
 
     TRANSITIONS = {
-        "start_topic_discussion": "start_topic_discussion",
-        "begin_development": "begin_development",
-        "move_to_submission": "move_to_submission",
+        # Planning
+        "to_topic_discussion": "to_topic_discussion",
+        "to_literature_review": "to_literature_review",
+        "to_gap_analysis": "to_gap_analysis",
+        "to_proposal_drafting": "to_proposal_drafting",
+        "approve_proposal": "approve_proposal",
+        # Development
+        "to_dataset_collection": "to_dataset_collection",
+        "to_dataset_cleaning": "to_dataset_cleaning",
+        "to_model_development": "to_model_development",
+        "to_experimentation": "to_experimentation",
+        "to_evaluation": "to_evaluation",
+        "to_result_analysis": "to_result_analysis",
+        # Writing
+        "to_initial_draft": "to_initial_draft",
+        "to_figure_preparation": "to_figure_preparation",
+        "to_formatting": "to_formatting",
+        "to_citation_checking": "to_citation_checking",
+        "to_grammar_review": "to_grammar_review",
+        "to_internal_review": "to_internal_review",
+        "to_supervisor_review": "to_supervisor_review",
+        # Submission
+        "to_journal_selection": "to_journal_selection",
+        "to_submission_ready": "to_submission_ready",
         "submit": "submit",
+        "to_under_review": "to_under_review",
         "request_revision": "request_revision",
+        "resubmit": "resubmit",
+        "back_to_under_review": "back_to_under_review",
         "accept": "accept",
-        "reject": "reject",
         "publish": "publish",
+        # Terminal
+        "reject": "reject",
+        "withdraw": "withdraw",
     }
 
     def post(self, request, paper_pk):

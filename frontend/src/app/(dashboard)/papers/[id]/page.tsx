@@ -22,6 +22,7 @@ import { CreateTaskDialog } from "@/components/create-task-dialog";
 import { AddAuthorDialog } from "@/components/add-author-dialog";
 import { FileUploadZone } from "@/components/file-upload-zone";
 import { CreateMilestoneDialog } from "@/components/create-milestone-dialog";
+import { PaperLifecycle } from "@/components/paper-lifecycle";
 import {
   PAPER_STATUS_LABEL,
   STATUS_TRANSITIONS,
@@ -244,7 +245,7 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
       {/* Tabs */}
       <Tabs defaultValue="overview">
         <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 gap-0">
-          {["overview", "authors", "tasks", "files", "milestones", "metadata"].map((tab) => (
+          {["overview", "lifecycle", "authors", "tasks", "files", "milestones", "metadata"].map((tab) => (
             <TabsTrigger
               key={tab}
               value={tab}
@@ -259,6 +260,11 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
             </TabsTrigger>
           ))}
         </TabsList>
+
+        {/* Lifecycle */}
+        <TabsContent value="lifecycle" className="mt-6">
+          <PaperLifecycle currentStatus={p.status} />
+        </TabsContent>
 
         {/* Overview */}
         <TabsContent value="overview" className="mt-6 space-y-5">

@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateTask } from "@/hooks/useTasks";
+import { useUsers } from "@/hooks/useUsers";
 
 const schema = z.object({
   title: z.string().min(2, "Title is required"),
@@ -51,7 +52,9 @@ export function CreateTaskDialog({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [priority, setPriority] = useState("");
+  const [assignedTo, setAssignedTo] = useState<string>("");
   const create = useCreateTask(paperId);
+  const { data: users } = useUsers();
 
   const { register, handleSubmit, setValue, reset, formState: { errors } } =
     useForm<FormValues>({ resolver: zodResolver(schema) });
@@ -64,6 +67,7 @@ export function CreateTaskDialog({
         priority: priority as "low" | "medium" | "high" | "urgent",
         deadline: values.deadline || undefined,
         estimated_hours: values.estimated_hours ? Number(values.estimated_hours) : undefined,
+        assigned_to: assignedTo ? Number(assignedTo) : null,
         paper: Number(paperId),
         status: "todo",
       },
@@ -72,6 +76,7 @@ export function CreateTaskDialog({
           toast.success("Task created.");
           reset();
           setPriority("");
+          setAssignedTo("");
           setOpen(false);
         },
         onError: () => toast.error("Failed to create task."),
@@ -120,14 +125,32 @@ export function CreateTaskDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label>Estimated hours</Label>
-              <Input type="number" min="0" step="0.5" placeholder="e.g. 4" {...register("estimated_hours")} />
+              <Label>Assign to</Label>
+              <Select value={assignedTo} onValueChange={(v) => setAssignedTo(v as string)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Unassigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Unassigned</SelectItem>
+                  {(users ?? []).map((u) => (
+                    <SelectItem key={u.id} value={String(u.id)}>
+                      {u.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Deadline</Label>
-            <Input type="datetime-local" {...register("deadline")} />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Deadline</Label>
+              <Input type="datetime-local" {...register("deadline")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Estimated hours</Label>
+              <Input type="number" min="0" step="0.5" placeholder="e.g. 4" {...register("estimated_hours")} />
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-1">

@@ -102,40 +102,143 @@ class Paper(models.Model):
     def __str__(self):
         return f"[{self.paper_id}] {self.title}"
 
+    # ── Planning ──────────────────────────────────────────────────────────────
     @transition(field=status, source=Status.IDEA_PROPOSED, target=Status.TOPIC_DISCUSSION)
-    def start_topic_discussion(self):
+    def to_topic_discussion(self):
         pass
 
+    @transition(field=status, source=Status.TOPIC_DISCUSSION, target=Status.LITERATURE_REVIEW)
+    def to_literature_review(self):
+        pass
+
+    @transition(field=status, source=Status.LITERATURE_REVIEW, target=Status.GAP_ANALYSIS)
+    def to_gap_analysis(self):
+        pass
+
+    @transition(field=status, source=Status.GAP_ANALYSIS, target=Status.PROPOSAL_DRAFTING)
+    def to_proposal_drafting(self):
+        pass
+
+    @transition(field=status, source=Status.PROPOSAL_DRAFTING, target=Status.PROPOSAL_APPROVED)
+    def approve_proposal(self):
+        pass
+
+    # ── Development ───────────────────────────────────────────────────────────
     @transition(field=status, source=Status.PROPOSAL_APPROVED, target=Status.DATASET_COLLECTION)
-    def begin_development(self):
+    def to_dataset_collection(self):
         pass
 
+    @transition(field=status, source=Status.DATASET_COLLECTION, target=Status.DATASET_CLEANING)
+    def to_dataset_cleaning(self):
+        pass
+
+    @transition(field=status, source=Status.DATASET_CLEANING, target=Status.MODEL_DEVELOPMENT)
+    def to_model_development(self):
+        pass
+
+    @transition(field=status, source=Status.MODEL_DEVELOPMENT, target=Status.EXPERIMENTATION)
+    def to_experimentation(self):
+        pass
+
+    @transition(field=status, source=Status.EXPERIMENTATION, target=Status.EVALUATION)
+    def to_evaluation(self):
+        pass
+
+    @transition(field=status, source=Status.EVALUATION, target=Status.RESULT_ANALYSIS)
+    def to_result_analysis(self):
+        pass
+
+    # ── Writing ───────────────────────────────────────────────────────────────
+    @transition(field=status, source=Status.RESULT_ANALYSIS, target=Status.INITIAL_DRAFT)
+    def to_initial_draft(self):
+        pass
+
+    @transition(field=status, source=Status.INITIAL_DRAFT, target=Status.FIGURE_PREPARATION)
+    def to_figure_preparation(self):
+        pass
+
+    @transition(field=status, source=Status.FIGURE_PREPARATION, target=Status.FORMATTING)
+    def to_formatting(self):
+        pass
+
+    @transition(field=status, source=Status.FORMATTING, target=Status.CITATION_CHECKING)
+    def to_citation_checking(self):
+        pass
+
+    @transition(field=status, source=Status.CITATION_CHECKING, target=Status.GRAMMAR_REVIEW)
+    def to_grammar_review(self):
+        pass
+
+    @transition(field=status, source=Status.GRAMMAR_REVIEW, target=Status.INTERNAL_REVIEW)
+    def to_internal_review(self):
+        pass
+
+    @transition(field=status, source=Status.INTERNAL_REVIEW, target=Status.SUPERVISOR_REVIEW)
+    def to_supervisor_review(self):
+        pass
+
+    # ── Submission ────────────────────────────────────────────────────────────
     @transition(field=status, source=Status.SUPERVISOR_REVIEW, target=Status.JOURNAL_SELECTION)
-    def move_to_submission(self):
+    def to_journal_selection(self):
+        pass
+
+    @transition(field=status, source=Status.JOURNAL_SELECTION, target=Status.SUBMISSION_READY)
+    def to_submission_ready(self):
         pass
 
     @transition(field=status, source=Status.SUBMISSION_READY, target=Status.SUBMITTED)
     def submit(self):
         pass
 
+    @transition(field=status, source=Status.SUBMITTED, target=Status.UNDER_REVIEW)
+    def to_under_review(self):
+        pass
+
     @transition(field=status, source=Status.UNDER_REVIEW, target=Status.REVISION_REQUESTED)
     def request_revision(self):
         pass
 
+    @transition(field=status, source=Status.REVISION_REQUESTED, target=Status.RESUBMITTED)
+    def resubmit(self):
+        pass
+
+    @transition(field=status, source=Status.RESUBMITTED, target=Status.UNDER_REVIEW)
+    def back_to_under_review(self):
+        pass
+
     @transition(
         field=status,
-        source=[Status.REVISION_REQUESTED, Status.RESUBMITTED],
+        source=[Status.UNDER_REVIEW, Status.REVISION_REQUESTED, Status.RESUBMITTED],
         target=Status.ACCEPTED,
     )
     def accept(self):
         pass
 
+    @transition(field=status, source=Status.ACCEPTED, target=Status.PUBLISHED)
+    def publish(self):
+        pass
+
+    # ── Terminal ──────────────────────────────────────────────────────────────
     @transition(field=status, source="*", target=Status.REJECTED)
     def reject(self):
         pass
 
-    @transition(field=status, source=Status.ACCEPTED, target=Status.PUBLISHED)
-    def publish(self):
+    @transition(
+        field=status,
+        source=[
+            Status.IDEA_PROPOSED, Status.TOPIC_DISCUSSION, Status.LITERATURE_REVIEW,
+            Status.GAP_ANALYSIS, Status.PROPOSAL_DRAFTING, Status.PROPOSAL_APPROVED,
+            Status.DATASET_COLLECTION, Status.DATASET_CLEANING, Status.MODEL_DEVELOPMENT,
+            Status.EXPERIMENTATION, Status.EVALUATION, Status.RESULT_ANALYSIS,
+            Status.INITIAL_DRAFT, Status.FIGURE_PREPARATION, Status.FORMATTING,
+            Status.CITATION_CHECKING, Status.GRAMMAR_REVIEW, Status.INTERNAL_REVIEW,
+            Status.SUPERVISOR_REVIEW, Status.JOURNAL_SELECTION, Status.SUBMISSION_READY,
+            Status.SUBMITTED, Status.UNDER_REVIEW, Status.REVISION_REQUESTED,
+            Status.RESUBMITTED,
+        ],
+        target=Status.WITHDRAWN,
+    )
+    def withdraw(self):
         pass
 
 
