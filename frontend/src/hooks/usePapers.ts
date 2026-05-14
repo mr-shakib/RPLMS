@@ -43,3 +43,32 @@ export function usePaperTransition(id: number | string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["papers", id] }),
   });
 }
+
+export function useTransitionPaper() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, transition }: { id: number; transition: string }) =>
+      papersService.transition(id, transition).then((r) => r.data),
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: ["papers"] });
+      qc.invalidateQueries({ queryKey: ["papers", String(id)] });
+    },
+  });
+}
+
+export function useDeletePaper() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => papersService.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["papers"] }),
+  });
+}
+
+export function useInlineUpdatePaper() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<Paper> }) =>
+      papersService.update(id, data).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["papers"] }),
+  });
+}
