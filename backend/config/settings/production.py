@@ -1,10 +1,17 @@
 from .base import *
 from decouple import config
 import dj_database_url
+import os
 
 DEBUG = False
 
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="").split(",")
+ALLOWED_HOSTS = [h for h in config("ALLOWED_HOSTS", default="").split(",") if h]
+
+# Render automatically sets RENDER_EXTERNAL_HOSTNAME — add it so ALLOWED_HOSTS
+# doesn't need to be manually configured in the dashboard.
+_render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+if _render_hostname:
+    ALLOWED_HOSTS.append(_render_hostname)
 
 # Database — Railway/Render provide DATABASE_URL
 DATABASES = {
