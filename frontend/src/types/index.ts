@@ -139,3 +139,40 @@ export interface Review {
   created_at: string;
   response: ReviewerResponse | null;
 }
+
+export interface LiteratureEntry {
+  id: number;
+  paper: number | null;
+  title: string;
+  authors: string;
+  year: number | null;
+  doi: string;
+  journal: string;
+  source_url: string;
+  summary: string;
+  method: string;
+  dataset: string;
+  limitations: string;
+  notes: string;
+  tags: string[];
+  added_by: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Meeting {
+  id: number;
+  paper: number | null;
+  title: string;
+  meeting_date: string;
+  location: string;
+  agenda: string;
+  notes: string;
+  decisions: string;
+  action_items: string;
+  participant_ids: number[];
+  participant_names: string[];
+  created_by: number | null;
+  created_at: string;
+  updated_at: string;
+}

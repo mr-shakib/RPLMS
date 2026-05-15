@@ -28,6 +28,8 @@ INSTALLED_APPS = [
     "apps.reviews",
     "apps.notifications",
     "apps.analytics",
+    "apps.meetings",
+    "apps.literature_review",
 ]
 
 MIDDLEWARE = [

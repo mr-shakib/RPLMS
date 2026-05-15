@@ -3,13 +3,13 @@
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, User, ExternalLink, CalendarDays,
+  ArrowLeft, ArrowRight, User, ExternalLink, CalendarDays,
   CheckCircle2, Circle, Clock, AlertCircle, Trash2, Edit2, Check, X, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { usePaper, usePaperTransition, useUpdatePaper } from "@/hooks/usePapers";
-import { usePaperTasks } from "@/hooks/useTasks";
+import { usePaperTasks, useDeleteTask } from "@/hooks/useTasks";
 import { useDeleteAuthor } from "@/hooks/useAuthors";
 import { useDeleteMilestone } from "@/hooks/useMilestones";
 import { useSubmissions, useDeleteSubmission, useReviews, useDeleteReview } from "@/hooks/useSubmissions";
@@ -30,6 +30,8 @@ import { CreateTaskDialog } from "@/components/create-task-dialog";
 import { AddAuthorDialog } from "@/components/add-author-dialog";
 import { FileUploadZone } from "@/components/file-upload-zone";
 import { CreateMilestoneDialog } from "@/components/create-milestone-dialog";
+import { EditMilestoneDialog } from "@/components/edit-milestone-dialog";
+import { EditTaskDialog } from "@/components/edit-task-dialog";
 import { PaperLifecycle } from "@/components/paper-lifecycle";
 import { AddSubmissionDialog } from "@/components/add-submission-dialog";
 import { AddReviewDialog } from "@/components/add-review-dialog";
@@ -223,6 +225,7 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
   const deleteMilestone = useDeleteMilestone(id);
   const { data: submissions = [] } = useSubmissions(id);
   const { data: users } = useUsers();
+  const deleteTask = useDeleteTask(id);
 
   if (isLoading) {
     return (
@@ -334,18 +337,11 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
           </div>
 
           {availableTransitions.length > 0 && (
-            <div className="flex gap-2 shrink-0 flex-wrap">
-              {availableTransitions.map(({ label, transition: t, variant = "default" }) => (
-                <Button
-                  key={t}
-                  size="sm"
-                  variant={variant}
-                  disabled={transition.isPending}
-                  onClick={() => handleTransition(t, label)}
-                >
-                  {label}
-                </Button>
-              ))}
+            <div className="shrink-0">
+              <Badge variant="outline" className="text-xs gap-1.5 px-2.5 py-1 cursor-default">
+                <ArrowRight className="h-3 w-3" />
+                {availableTransitions.length} transition{availableTransitions.length > 1 ? "s" : ""} available → Lifecycle tab
+              </Badge>
             </div>
           )}
         </div>
@@ -441,7 +437,12 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
 
         {/* Lifecycle */}
         <TabsContent value="lifecycle" className="mt-6">
-          <PaperLifecycle currentStatus={p.status} />
+          <PaperLifecycle
+            currentStatus={p.status}
+            availableTransitions={availableTransitions}
+            onTransition={handleTransition}
+            isPending={transition.isPending}
+          />
         </TabsContent>
 
         {/* Overview */}
@@ -778,15 +779,23 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
           ) : (
             <div className="divide-y rounded-xl border bg-white">
               {tasks.map((task: Task) => (
-                <div key={task.id} className="flex items-center gap-4 px-5 py-3.5">
+                <div key={task.id} className="flex items-center gap-3 px-5 py-3.5 group">
                   <span className={`h-2 w-2 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{task.title}</p>
-                    {task.deadline && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Due {new Date(task.deadline).toLocaleDateString()}
-                      </p>
-                    )}
+                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                      {task.description && (
+                        <p className="text-xs text-muted-foreground truncate max-w-xs">{task.description}</p>
+                      )}
+                      {task.deadline && (
+                        <p className="text-xs text-muted-foreground">
+                          Due {new Date(task.deadline).toLocaleDateString()}
+                        </p>
+                      )}
+                      {task.estimated_hours && (
+                        <p className="text-xs text-muted-foreground">{task.estimated_hours}h estimated</p>
+                      )}
+                    </div>
                   </div>
                   <Badge
                     variant="outline"
@@ -794,6 +803,20 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
                   >
                     {task.status.replace("_", " ")}
                   </Badge>
+                  <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <EditTaskDialog task={task} />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50"
+                      onClick={() => deleteTask.mutate(task.id, {
+                        onSuccess: () => toast.success("Task deleted."),
+                        onError: () => toast.error("Failed to delete task."),
+                      })}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -841,7 +864,7 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
                       {m.description && <p className="text-sm text-muted-foreground mt-0.5">{m.description}</p>}
                       {m.comments && <p className="text-xs text-muted-foreground mt-1 italic">{m.comments}</p>}
                     </div>
-                    <div className="flex items-start gap-3 shrink-0">
+                    <div className="flex items-start gap-2 shrink-0">
                       <div className="text-right space-y-1">
                         <div className="flex items-center gap-1 text-xs text-muted-foreground justify-end">
                           <CalendarDays className="h-3 w-3" />
@@ -858,6 +881,7 @@ export default function PaperDetailPage({ params }: { params: Promise<{ id: stri
                           {m.status.replace("_", " ")}
                         </Badge>
                       </div>
+                      <EditMilestoneDialog milestone={m} paperId={id} />
                       <Button
                         variant="ghost"
                         size="icon"

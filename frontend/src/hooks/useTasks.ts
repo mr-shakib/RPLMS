@@ -36,3 +36,14 @@ export function useUpdateTask() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
   });
 }
+
+export function useDeleteTask(paperId?: number | string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => tasksService.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      if (paperId) qc.invalidateQueries({ queryKey: ["tasks", "paper", paperId] });
+    },
+  });
+}

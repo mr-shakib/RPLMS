@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { usePapers, useDeletePaper, useTransitionPaper, useInlineUpdatePaper } from "@/hooks/usePapers";
 import { CreatePaperDialog } from "@/components/create-paper-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -21,8 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Trash2, ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown,
-  ArrowRight, Search,
+  Trash2, ChevronUp, ChevronDown, ChevronsUpDown,
+  ArrowRight, Search, Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -77,7 +77,6 @@ function SortBtn({ col, sort, onToggle }: {
 }
 
 export default function PapersPage() {
-  const router = useRouter();
   const [search, setSearch] = useState("");
   const [domainFilter, setDomainFilter] = useState("all");
   const [phaseFilter, setPhaseFilter] = useState("all");
@@ -166,7 +165,7 @@ export default function PapersPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Papers</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {data?.count ?? 0} total · click a title to rename · hover a row for actions
+            {data?.count ?? 0} total · click a title to open · pencil to rename
           </p>
         </div>
         <CreatePaperDialog />
@@ -245,7 +244,7 @@ export default function PapersPage() {
                       <span className="text-xs font-mono text-muted-foreground">{paper.paper_id}</span>
                     </td>
 
-                    {/* Title — inline edit */}
+                    {/* Title — link to detail, pencil to rename */}
                     <td className="px-3 py-2.5 max-w-xs">
                       {isEditing ? (
                         <input
@@ -260,21 +259,18 @@ export default function PapersPage() {
                           }}
                         />
                       ) : (
-                        <div className="flex items-start gap-2 min-w-0">
-                          <div className="min-w-0">
-                            <span
-                              className="font-medium cursor-text hover:text-blue-600 line-clamp-2 leading-snug"
-                              onClick={() => startEdit(paper)}
-                              title="Click to rename"
-                            >
-                              {paper.title}
-                            </span>
-                            {paper.keywords?.length > 0 && (
-                              <p className="text-xs text-muted-foreground mt-0.5 truncate hidden xl:block">
-                                {paper.keywords.slice(0, 3).join(", ")}
-                              </p>
-                            )}
-                          </div>
+                        <div className="min-w-0">
+                          <Link
+                            href={`/papers/${paper.id}`}
+                            className="font-medium hover:text-blue-600 hover:underline line-clamp-2 leading-snug"
+                          >
+                            {paper.title}
+                          </Link>
+                          {paper.keywords?.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate hidden xl:block">
+                              {paper.keywords.slice(0, 3).join(", ")}
+                            </p>
+                          )}
                         </div>
                       )}
                     </td>
@@ -346,11 +342,11 @@ export default function PapersPage() {
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          title="Open detail"
+                          title="Rename"
                           className="h-7 w-7 flex items-center justify-center rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"
-                          onClick={() => router.push(`/papers/${paper.id}`)}
+                          onClick={() => startEdit(paper)}
                         >
-                          <ExternalLink className="h-3.5 w-3.5" />
+                          <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <button
                           title="Delete paper"

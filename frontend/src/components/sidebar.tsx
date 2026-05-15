@@ -12,6 +12,8 @@ import {
   LogOut,
   ChevronRight,
   Send,
+  CalendarDays,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLogout } from "@/hooks/useAuth";
@@ -25,6 +27,8 @@ const NAV = [
   { href: "/papers", label: "Papers", icon: FileText },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/submissions", label: "Submissions", icon: Send },
+  { href: "/meetings", label: "Meetings", icon: CalendarDays },
+  { href: "/literature", label: "Literature", icon: BookOpen },
   { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];

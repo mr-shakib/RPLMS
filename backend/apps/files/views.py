@@ -22,7 +22,7 @@ class ResearchFileViewSet(viewsets.ModelViewSet):
         file = self.request.FILES.get("file")
         if file:
             path = default_storage.save(f"uploads/{file.name}", file)
-            file_url = self.request.build_absolute_uri(f"{settings.MEDIA_URL}{path}")
+            file_url = self.request.build_absolute_uri(f"/{settings.MEDIA_URL}{path}")
             serializer.save(
                 uploaded_by=self.request.user,
                 file_url=file_url,

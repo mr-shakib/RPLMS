@@ -1,7 +1,8 @@
 "use client";
 
-import { Check, Circle, Lock } from "lucide-react";
+import { Check, Circle, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import type { PaperStatus } from "@/types";
 
 const PHASES: { label: string; color: string; statuses: { key: PaperStatus; label: string }[] }[] = [
@@ -65,8 +66,6 @@ const PHASES: { label: string; color: string; statuses: { key: PaperStatus; labe
 ];
 
 const TERMINAL: PaperStatus[] = ["rejected", "withdrawn"];
-
-// Flat ordered list for computing "past" states
 const ORDERED: PaperStatus[] = PHASES.flatMap((p) => p.statuses.map((s) => s.key));
 
 const PHASE_HEADER: Record<string, string> = {
@@ -109,16 +108,33 @@ const PHASE_LINE_DONE: Record<string, string> = {
   green: "bg-green-300",
 };
 
-interface Props {
-  currentStatus: PaperStatus;
+const PHASE_NEXT_BTN: Record<string, string> = {
+  blue: "border-blue-300 text-blue-700 hover:bg-blue-50",
+  yellow: "border-yellow-300 text-yellow-700 hover:bg-yellow-50",
+  purple: "border-purple-300 text-purple-700 hover:bg-purple-50",
+  orange: "border-orange-300 text-orange-700 hover:bg-orange-50",
+  green: "border-green-300 text-green-700 hover:bg-green-50",
+};
+
+export interface LifecycleTransition {
+  label: string;
+  transition: string;
+  variant?: "default" | "destructive" | "outline";
 }
 
-export function PaperLifecycle({ currentStatus }: Props) {
+interface Props {
+  currentStatus: PaperStatus;
+  availableTransitions?: LifecycleTransition[];
+  onTransition?: (transition: string, label: string) => void;
+  isPending?: boolean;
+}
+
+export function PaperLifecycle({ currentStatus, availableTransitions = [], onTransition, isPending }: Props) {
   const isTerminal = TERMINAL.includes(currentStatus);
   const currentIdx = ORDERED.indexOf(currentStatus);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {isTerminal && (
         <div className={cn(
           "rounded-lg border px-4 py-3 text-sm font-medium",
@@ -130,16 +146,49 @@ export function PaperLifecycle({ currentStatus }: Props) {
         </div>
       )}
 
+      {/* Transition controls */}
+      {availableTransitions.length > 0 && onTransition && (
+        <div className="rounded-xl border bg-white px-5 py-4 space-y-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Advance status
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {availableTransitions.map(({ label, transition, variant = "default" }) => (
+              <Button
+                key={transition}
+                size="sm"
+                variant={variant}
+                disabled={isPending}
+                onClick={() => onTransition(transition, label)}
+                className="gap-2"
+              >
+                {isPending
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <ArrowRight className="h-3.5 w-3.5" />}
+                {label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Visual pipeline */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {PHASES.map((phase) => {
           const phaseIdx = phase.statuses.findIndex((s) => s.key === currentStatus);
-          const phaseIsDone = phaseIdx === -1 && currentIdx > ORDERED.indexOf(phase.statuses[phase.statuses.length - 1].key);
+          const lastStatusInPhase = phase.statuses[phase.statuses.length - 1].key;
+          const phaseIsDone = phaseIdx === -1 && currentIdx > ORDERED.indexOf(lastStatusInPhase);
 
           return (
             <div key={phase.label} className="space-y-2">
               {/* Phase header */}
-              <div className={cn("rounded-md border px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-center", PHASE_HEADER[phase.color])}>
+              <div className={cn(
+                "rounded-md border px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-center",
+                PHASE_HEADER[phase.color],
+                phaseIsDone && "opacity-60",
+              )}>
                 {phase.label}
+                {phaseIsDone && " ✓"}
               </div>
 
               {/* Steps */}
@@ -151,6 +200,13 @@ export function PaperLifecycle({ currentStatus }: Props) {
                   const isFuture = isTerminal || globalIdx > currentIdx;
                   const isLast = i === phase.statuses.length - 1;
 
+                  // Is there a transition that targets this status?
+                  const transitionToThis = availableTransitions.find((t) => {
+                    // The transition brings us to globalIdx = currentIdx + 1 ideally
+                    return globalIdx === currentIdx + 1;
+                  });
+                  const isNextStep = globalIdx === currentIdx + 1 && !isTerminal;
+
                   return (
                     <div key={s.key} className="flex flex-col items-center">
                       <div className="flex items-center gap-2 w-full">
@@ -159,26 +215,30 @@ export function PaperLifecycle({ currentStatus }: Props) {
                           "h-5 w-5 shrink-0 rounded-full border-2 flex items-center justify-center",
                           isDone ? PHASE_DOT_DONE[phase.color] : "",
                           isCurrent ? PHASE_DOT_CURRENT[phase.color] : "",
-                          isFuture ? "border-zinc-200 bg-white" : "",
+                          isFuture && !isNextStep ? "border-zinc-200 bg-white" : "",
+                          isNextStep ? `border-dashed ${PHASE_DOT_CURRENT[phase.color]} opacity-60` : "",
                         )}>
                           {isDone && <Check className="h-3 w-3 text-white" />}
                           {isCurrent && (
                             <span className={cn("h-2 w-2 rounded-full", PHASE_DOT_CURRENT_INNER[phase.color])} />
                           )}
-                          {isFuture && <Circle className="h-2.5 w-2.5 text-zinc-300" />}
+                          {isFuture && !isNextStep && <Circle className="h-2.5 w-2.5 text-zinc-300" />}
+                          {isNextStep && <Circle className={cn("h-2.5 w-2.5 opacity-50", PHASE_DOT_CURRENT_INNER[phase.color].replace("bg-", "text-"))} />}
                         </div>
 
                         {/* Label */}
                         <span className={cn(
-                          "text-xs leading-tight",
+                          "text-xs leading-tight flex-1",
                           isDone ? "text-zinc-500" : "",
                           isCurrent ? "font-semibold text-zinc-900" : "",
-                          isFuture ? "text-zinc-400" : "",
+                          isFuture && !isNextStep ? "text-zinc-400" : "",
+                          isNextStep ? "text-zinc-500 italic" : "",
                         )}>
                           {s.label}
+                          {isCurrent && " ←"}
                         </span>
 
-                        {isFuture && !isCurrent && (
+                        {isFuture && !isNextStep && (
                           <Lock className="ml-auto h-3 w-3 text-zinc-300 shrink-0" />
                         )}
                       </div>
