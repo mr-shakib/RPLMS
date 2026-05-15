@@ -1,7 +1,6 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from django.core.files.storage import default_storage
-from django.conf import settings
 from .models import ResearchFile
 from .serializers import ResearchFileSerializer
 
@@ -22,7 +21,11 @@ class ResearchFileViewSet(viewsets.ModelViewSet):
         file = self.request.FILES.get("file")
         if file:
             path = default_storage.save(f"uploads/{file.name}", file)
-            file_url = self.request.build_absolute_uri(f"/{settings.MEDIA_URL}{path}")
+            # default_storage.url() works for both local dev and Cloudinary in prod
+            file_url = default_storage.url(path)
+            # For local storage, make it absolute if it's a relative path
+            if file_url.startswith("/"):
+                file_url = self.request.build_absolute_uri(file_url)
             serializer.save(
                 uploaded_by=self.request.user,
                 file_url=file_url,
